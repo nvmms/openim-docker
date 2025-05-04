@@ -4,7 +4,7 @@ networks:
 
 services:
   nginx:
-    image: nginx:stable
+    image: nginx:1.19.4
     container_name: openim-nginx
     restart: unless-stopped
     ports:

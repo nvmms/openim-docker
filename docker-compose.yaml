@@ -3,7 +3,6 @@ networks:
     driver: bridge
 
 services:
-
   mongo:
     image: "${MONGO_IMAGE}"
     container_name: openim-mongo
@@ -52,6 +51,24 @@ services:
     sysctls:
       net.core.somaxconn: 1024
     command: [ "redis-server", "/usr/local/redis/config/redis.conf", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes" ]
+    networks:
+      - openim
+
+  mysql:
+    image: mysql:5.7
+    container_name: openim-mysql
+    ports:
+      - "13306:3306"
+    volumes:
+      - "${DATA_DIR}/components/mysql/data:/var/lib/mysql"
+      - "${DATA_DIR}/components/mysql/config:/etc/mysql/conf.d"
+    environment:
+      TZ: Asia/Shanghai
+      MYSQL_ROOT_PASSWORD: 123456
+      MYSQL_DATABASE: openIM
+      MYSQL_USER: openIM
+      MYSQL_PASSWORD: 123456
+    restart: always
     networks:
       - openim
 
@@ -111,24 +128,6 @@ services:
       MINIO_ROOT_PASSWORD: "${MINIO_SECRET_ACCESS_KEY}"
     restart: always
     command: minio server /data --console-address ':9090'
-    networks:
-      - openim
-
-  openim-web-front:
-    image: ${OPENIM_WEB_FRONT_IMAGE}
-    container_name: openim-web-front
-    restart: always
-    ports:
-      - "${OPENIM_WEB_FRONT_PORT}:80"
-    networks:
-      - openim
-
-  openim-admin-front:
-    image: ${OPENIM_ADMIN_FRONT_IMAGE}
-    container_name: openim-admin-front
-    restart: always
-    ports:
-      - "${OPENIM_ADMIN_FRONT_PORT}:80"
     networks:
       - openim
 
@@ -236,29 +235,9 @@ services:
     networks:
       - openim
 
-  openim-chat:
-    image: ${OPENIM_CHAT_IMAGE}
-    container_name: openim-chat
-    init: true
-    healthcheck:
-      test: [ "CMD", "sh", "-c", "mage check" ]
-      interval: 5s
-      timeout: 60s
-      retries: 10
-    environment:
-      - CHATENV_MONGODB_ADDRESS=${MONGO_ADDRESS}
-      - CHATENV_MONGODB_USERNAME=${MONGO_USERNAME}
-      - CHATENV_MONGODB_PASSWORD=${MONGO_PASSWORD}
-      - CHATENV_DISCOVERY_ETCD_ADDRESS=${ETCD_ADDRESS}
-      - CHATENV_REDIS_ADDRESS=${REDIS_ADDRESS}
-      - CHATENV_REDIS_PASSWORD=${REDIS_PASSWORD}
-      - CHATENV_SHARE_OPENIM_SECRET=${OPENIM_SECRET}
-      - CHATENV_SHARE_OPENIM_APIURL=${API_URL}
-      - CHATENV_LOG_ISSTDOUT=${LOG_IS_STDOUT}
-      - CHATENV_LOG_REMAINLOGLEVEL=${LOG_LEVEL}
-    ports:
-      - "${CHAT_API_PORT}:10008"
-      - "${ADMIN_API_PORT}:10009"
+  openim-api:
+    image: ${OPENIM_API_IMAGE}
+    container_name: openim-api
     restart: always
     depends_on:
       - mongo
@@ -266,6 +245,84 @@ services:
       - etcd
       - kafka
       - minio
+      - mysql
       - openim-server
     networks:
       - openim
+
+  openim-web-front:
+    image: ${OPENIM-WEB-FRONT_IMAGE}
+    container_name: openim-web-front
+    restart: always
+    networks:
+      - openim
+
+  openim-admin-front:
+    image: ${OPENIM_ADMIN_FRONT_IMAGE}
+    container_name: openim-admin-front
+    restart: always
+    networks:
+      - openim
+
+  openim-nginx:
+    image: ${OPENIM_ADMIN_FRONT_IMAGE}
+    container_name: openim-admin-front
+    restart: always
+    volumes:
+      - "${DATA_DIR}/config/nginx.conf:/etc/nginx/nginx.conf:ro"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - openim
+  # openim-chat:
+  #   image: ${OPENIM_CHAT_IMAGE}
+  #   container_name: openim-chat
+  #   init: true
+  #   healthcheck:
+  #     test: [ "CMD", "sh", "-c", "mage check" ]
+  #     interval: 5s
+  #     timeout: 60s
+  #     retries: 10
+  #   environment:
+  #     - CHATENV_MONGODB_ADDRESS=${MONGO_ADDRESS}
+  #     - CHATENV_MONGODB_USERNAME=${MONGO_USERNAME}
+  #     - CHATENV_MONGODB_PASSWORD=${MONGO_PASSWORD}
+  #     - CHATENV_DISCOVERY_ETCD_ADDRESS=${ETCD_ADDRESS}
+  #     - CHATENV_REDIS_ADDRESS=${REDIS_ADDRESS}
+  #     - CHATENV_REDIS_PASSWORD=${REDIS_PASSWORD}
+  #     - CHATENV_SHARE_OPENIM_SECRET=${OPENIM_SECRET}
+  #     - CHATENV_SHARE_OPENIM_APIURL=${API_URL}
+  #     - CHATENV_LOG_ISSTDOUT=${LOG_IS_STDOUT}
+  #     - CHATENV_LOG_REMAINLOGLEVEL=${LOG_LEVEL}
+  #   ports:
+  #     - "${CHAT_API_PORT}:10008"
+  #     - "${ADMIN_API_PORT}:10009"
+  #   restart: always
+  #   depends_on:
+  #     - mongo
+  #     - redis
+  #     - etcd
+  #     - kafka
+  #     - minio
+  #     - openim-server
+  #   networks:
+  #     - openim
+
+  # openim-web-front:
+  #   image: ${OPENIM_WEB_FRONT_IMAGE}
+  #   container_name: openim-web-front
+  #   restart: always
+  #   ports:
+  #     - "${OPENIM_WEB_FRONT_PORT}:80"
+  #   networks:
+  #     - openim
+
+  # openim-admin-front:
+  #   image: ${OPENIM_ADMIN_FRONT_IMAGE}
+  #   container_name: openim-admin-front
+  #   restart: always
+  #   ports:
+  #     - "${OPENIM_ADMIN_FRONT_PORT}:80"
+  #   networks:
+  #     - openim

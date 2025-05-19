@@ -35,7 +35,7 @@ services:
       - MONGO_INITDB_DATABASE=openim_v3
       - MONGO_OPENIM_USERNAME=${MONGO_USERNAME}
       - MONGO_OPENIM_PASSWORD=${MONGO_PASSWORD}
-    restart: always
+    restart: unless-stopped
     networks:
       - openim
 
@@ -47,7 +47,7 @@ services:
       - "${DATA_DIR}/components/redis/config/redis.conf:/usr/local/redis/config/redis.conf"
     environment:
       TZ: Asia/Shanghai
-    restart: always
+    restart: unless-stopped
     sysctls:
       net.core.somaxconn: 1024
     command: [ "redis-server", "/usr/local/redis/config/redis.conf", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes" ]
@@ -68,7 +68,7 @@ services:
       MYSQL_DATABASE: openIM
       MYSQL_USER: openIM
       MYSQL_PASSWORD: 123456
-    restart: always
+    restart: unless-stopped
     networks:
       - openim
 
@@ -88,7 +88,7 @@ services:
       - ETCD_INITIAL_CLUSTER=s1=http://0.0.0.0:2380
       - ETCD_INITIAL_CLUSTER_TOKEN=tkn
       - ETCD_INITIAL_CLUSTER_STATE=new
-    restart: always
+    restart: unless-stopped
     networks:
       - openim
 
@@ -96,7 +96,7 @@ services:
     image: "${KAFKA_IMAGE}"
     container_name: openim-kafka
     user: root
-    restart: always
+    restart: unless-stopped
     volumes:
       - "${DATA_DIR}/components/kafka:/bitnami/kafka"
     environment:
@@ -126,7 +126,7 @@ services:
       TZ: Asia/Shanghai
       MINIO_ROOT_USER: "${MINIO_ACCESS_KEY_ID}"
       MINIO_ROOT_PASSWORD: "${MINIO_SECRET_ACCESS_KEY}"
-    restart: always
+    restart: unless-stopped
     command: minio server /data --console-address ':9090'
     networks:
       - openim
@@ -134,7 +134,7 @@ services:
   prometheus:
     image: ${PROMETHEUS_IMAGE}
     container_name: prometheus
-    restart: always
+    restart: unless-stopped
     user: root
     profiles:
       - m
@@ -151,7 +151,7 @@ services:
   alertmanager:
     image: ${ALERTMANAGER_IMAGE}
     container_name: alertmanager
-    restart: always
+    restart: unless-stopped
     profiles:
       - m
     volumes:
@@ -166,7 +166,7 @@ services:
     image: ${GRAFANA_IMAGE}
     container_name: grafana
     user: root
-    restart: always
+    restart: unless-stopped
     profiles:
       - m
     environment:
@@ -183,7 +183,7 @@ services:
   node-exporter:
     image: ${NODE_EXPORTER_IMAGE}
     container_name: node-exporter
-    restart: always
+    restart: unless-stopped
     profiles:
       - m
     volumes:
@@ -225,7 +225,7 @@ services:
       - IMENV_LOG_ISSTDOUT=${LOG_IS_STDOUT}
       - IMENV_LOG_REMAINLOGLEVEL=${LOG_LEVEL}
       - IMENV_OPENIM_API_PROMETHEUS_GRAFANAURL=${GRAFANA_URL}
-    restart: always
+    restart: unless-stopped
     depends_on:
       - mongo
       - redis
@@ -238,7 +238,9 @@ services:
   openim-api:
     image: ${OPENIM_API_IMAGE}
     container_name: openim-api
-    restart: always
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
     depends_on:
       - mongo
       - redis
@@ -251,30 +253,45 @@ services:
       - openim
 
   openim-web-front:
-    image: ${OPENIM-WEB-FRONT_IMAGE}
+    image: ${OPENIM_WEB_FRONT_IMAGE}
     container_name: openim-web-front
-    restart: always
+    restart: unless-stopped
     networks:
       - openim
 
   openim-admin-front:
     image: ${OPENIM_ADMIN_FRONT_IMAGE}
     container_name: openim-admin-front
-    restart: always
+    restart: unless-stopped
     networks:
       - openim
 
   openim-nginx:
     image: ${OPENIM_ADMIN_FRONT_IMAGE}
-    container_name: openim-admin-front
-    restart: always
+    container_name: openim-nginx
+    restart: unless-stopped
     volumes:
       - "${DATA_DIR}/config/nginx.conf:/etc/nginx/nginx.conf:ro"
+      - "${DATA_DIR}/config/nginx/:/root/nginx/:ro"
     ports:
       - "80:80"
       - "443:443"
+    depends_on:
+      - mongo
+      - redis
+      - etcd
+      - kafka
+      - minio
+      - mysql
+      - openim-server
+      - openim-admin-front
+      - openim-web-front
+      - openim-api
     networks:
       - openim
+  
+  
+  
   # openim-chat:
   #   image: ${OPENIM_CHAT_IMAGE}
   #   container_name: openim-chat
@@ -298,7 +315,7 @@ services:
   #   ports:
   #     - "${CHAT_API_PORT}:10008"
   #     - "${ADMIN_API_PORT}:10009"
-  #   restart: always
+  #   restart: unless-stopped
   #   depends_on:
   #     - mongo
   #     - redis
@@ -312,7 +329,7 @@ services:
   # openim-web-front:
   #   image: ${OPENIM_WEB_FRONT_IMAGE}
   #   container_name: openim-web-front
-  #   restart: always
+  #   restart: unless-stopped
   #   ports:
   #     - "${OPENIM_WEB_FRONT_PORT}:80"
   #   networks:
@@ -321,7 +338,7 @@ services:
   # openim-admin-front:
   #   image: ${OPENIM_ADMIN_FRONT_IMAGE}
   #   container_name: openim-admin-front
-  #   restart: always
+  #   restart: unless-stopped
   #   ports:
   #     - "${OPENIM_ADMIN_FRONT_PORT}:80"
   #   networks:

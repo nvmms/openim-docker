@@ -274,6 +274,7 @@ services:
     volumes:
       - "${DATA_DIR}/config/nginx.conf:/etc/nginx/nginx.conf:ro"
       - "${DATA_DIR}/config/nginx/:/root/nginx/:ro"
+      - "${DATA_DIR}/ssl/archive/:/etc/nginx/ssl/:ro"
     ports:
       - "80:80"
       - "443:443"
